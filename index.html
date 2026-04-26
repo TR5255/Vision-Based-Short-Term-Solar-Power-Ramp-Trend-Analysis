@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Solar PV Forecast</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>☀ Solar Forecast</h1>
+
+    <div class="input-box">
+        <input type="text" id="lat" placeholder="Latitude">
+    </div>
+
+    <div class="input-box">
+        <input type="text" id="lon" placeholder="Longitude">
+    </div>
+
+    <!-- ✅ FIXED: Full datetime instead of just time -->
+    <div class="input-box">
+        <label>Start Date & Time</label>
+        <input type="datetime-local" id="datetime">
+    </div>
+
+    <div class="input-box">
+        <label>Upload 12 Sky Images</label>
+        <input type="file" id="images" multiple>
+    </div>
+
+    <button onclick="predict()">Predict</button>
+
+    <div id="result"></div>
+
+</div>
+
+<script>
+
+// ------------------------------
+// CONDITION MAPPING FUNCTION
+// ------------------------------
+function getCondition(k) {
+    if (k >= 0.85) return "☀️ Clear Sky";
+    else if (k >= 0.65) return "🌤️ Mostly Clear";
+    else if (k >= 0.45) return "⛅ Light Clouds";
+    else if (k >= 0.25) return "☁️ Moderate Clouds";
+    else return "🌧️ Heavy Clouds";
+}
+
+// ------------------------------
+// PREDICT FUNCTION
+// ------------------------------
+async function predict() {
+
+    let files = document.getElementById("images").files;
+    let lat = document.getElementById("lat").value;
+    let lon = document.getElementById("lon").value;
+    let datetime = document.getElementById("datetime").value;
+
+    if (files.length != 12) {
+        alert("Upload exactly 12 images");
+        return;
+    }
+
+    if (!lat || !lon || !datetime) {
+        alert("Fill all fields");
+        return;
+    }
+
+    // ------------------------------
+    // FORMAT DATETIME CORRECTLY
+    // ------------------------------
+    // Browser gives: "2026-04-08T10:19"
+    // Convert to:    "2026-04-08 10:19"
+    datetime = datetime.replace("T", " ");
+
+    let formData = new FormData();
+
+    formData.append("latitude", lat);
+    formData.append("longitude", lon);
+
+    // ✅ MATCH BACKEND KEY
+    formData.append("datetime", datetime);
+
+    for (let i = 0; i < files.length; i++) {
+        formData.append("images", files[i]);
+    }
+
+    let res = await fetch("/predict", {
+        method: "POST",
+        body: formData
+    });
+
+    let data = await res.json();
+
+    let ratio = data.pv_ratio;
+    let condition = getCondition(ratio);
+
+    // ------------------------------
+    // DISPLAY RESULT
+    // ------------------------------
+    document.getElementById("result").innerHTML =
+        `<h2>${condition}</h2>
+         <p><strong>PV / PVclear:</strong> ${ratio.toFixed(3)}</p>`;
+}
+
+</script>
+
+</body>
+</html>
